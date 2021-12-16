@@ -1,0 +1,204 @@
+---
+title: "GM Mirador Task Sheet"
+author: "George Melrose"
+date: "20/08/2021"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#Readying necessary packages and data# 
+library(plyr)
+library(ggplot2)
+library(naniar)
+```
+
+### 1 k - anonymity analysis
+
+#### 1(a)
+```{r}
+#Defining the columns and their associated levels# 
+my_col <- c("Clyde","Forth","Tweed","Tay","Spey","Teviot","Ness","Dee")
+my_lev <- c("High","Normal","Low")
+
+#Randomly generating the 8x50K dataframe# 
+df <- data.frame(replicate(length(my_col), sample(my_lev, 50000, replace = TRUE)))
+names(df) <- my_col
+df
+```
+
+#### 1(b)
+```{r}
+#Verifying that the proportions of each value are similar for each of the eight columns#
+table <- prop.table(apply(df, 2, table), 2)
+table
+```
+#### 1(c)
+```{r}
+#Making a new df that includes the frequency of category level permutation levels occurring#  
+df2 <- count(df, vars = c("Clyde","Forth","Tweed","Tay","Spey","Teviot","Ness","Dee"))
+df2
+```
+>With 6,555 rows in 'df2', 6,555 permutations of the river levels are possible. This number is close to to 3^8 = 6561
+
+#### 1(d)
+```{r}
+#Removing group sizes/combinations with a frequency >12#
+df2_cut <- subset(df2, freq<13)
+df2_cut
+
+perm_df <- subset(df2_cut, select = -c(Clyde:Dee))
+
+
+#Plotting a histogram of the permutation group sizes with a frequency legend to aid in revealing the probability distribution#
+ggplot(perm_df, aes(x=freq)) +
+  
+geom_histogram(breaks=seq(1, 12, by=1),aes(fill=..count..)) + 
+
+labs(title="Histogram for Frequencies of Permutation Group Sizes", x="Permutation group size", y="Frequency")  + ylim(c(0,1000)) + scale_x_continuous(breaks = c(0,1,2,3,4,5,6,7,8,9,10,11,12))+ scale_fill_gradient("Frequency", low="deepskyblue", high="blue3") + geom_vline(aes(xintercept = mean(freq)),col='black',size=1) + geom_vline(aes(xintercept = median(freq)),col='darkorange1',size=1) + annotate("text", x = 6.2, y = 600, label = "Median", size=3.5,col='darkorange1') +
+annotate("text", x = 7.9, y = 600, label = "Mean", size=3.5)  
+```
+
+#### 1(e)
+>The group sizes follow a normal distribution - the graph is approximately bell-shaped and almost symmetric about the mean.The mean and the median are also close in numerical value to each other, something that would not occur if the distribution were skewed. 
+
+#### 1(f)
+>Let us assume that in place of Scottish rivers in (a) there are 8 components to patient data like a tumour biopsy plate key, and 3 levels that make up an encryption key. The most frequent group sizes are in the middle of our distribution - 5,6,7,8. The least frequent group sizes are the extremes of the distribution - 1,2,11,12.
+
+>The most frequent group sizes have more different permutations associated with them. The less frequent group sizes have fewer of permutations associated with them.Therefore, from a privacy perspective the most frequent group sizes are safer. There are more different permutations associated with group 6 than groups 12 or 1, so solving/hacking group 6 would take more time and computational effort. 
+
+#### 1(g)
+
+```{r}
+#Making a new dataset with the 'High' level replaced by missing values, 'NA'. Running code from previous answers to see what happens to the frequency of permutation group.#
+
+#I predict that the distribution of permutation frequencies will be greatly changed by missing values, becoming either left- or right- skewed.# 
+df_2 <- df %>% dplyr::na_if("High")
+
+df_2 <- count(df_2, vars = c("Clyde","Forth","Tweed","Tay","Spey","Teviot","Ness","Dee"))
+df_2
+
+df_cut <- subset(df_2, freq<13)
+df_cut
+
+```
+
+```{r}
+#Creating a dataframe with the frequencies of each permutation arising#
+perm_na_df <- subset(df_cut, select = -c(Clyde:Dee))
+perm_na_df
+```
+> A curious resultant dataframe, practically identical to the original.
+
+```{r}
+#Creation of a histogram to show the permutation frequencies when missing values are present#
+ggplot(perm_na_df, aes(x=freq)) +
+  
+geom_histogram(breaks=seq(1, 12, by=1),aes(fill=..count..)) + 
+
+labs(title="Histogram for Frequencies of Permutation Group Sizes w/Missing Values", x="Permutation group size", y="Frequency")  + ylim(c(0,1000)) + scale_x_continuous(breaks = c(0,1,2,3,4,5,6,7,8,9,10,11,12))+ scale_fill_gradient("Frequency", low="deepskyblue", high="deepskyblue4") + geom_vline(aes(xintercept = mean(freq)),col='black',size=1) + geom_vline(aes(xintercept = median(freq)),col='darkorange1',size=1) + annotate("text", x = 6.2, y = 600, label = "Median", size=3.5,col='darkorange1') +
+annotate("text", x = 7.9, y = 600, label = "Mean", size=3.5)  
+```
+
+> The missing values have not complicated the production of a frequency table or of a subsequent visualisation. This may be due to the discrete nature of the variables, with 'NA' subsequently being read as just another level. 
+
+#### 1(h)
+
+> When deploying the code from part (d), a development team should follow a checklist before production.
+
+> 1. Version Control
+      + Use a repository management tool such as Bitbucket or Gitlab which are useful as dev and ops teams can work together in the same system, sharing feedback loops. 
+      + Passwords and/or private keys must be hidden/masked in this step.
+      
+> 2. Testing
+     + Automated and manual testing are both important in testing the code. Automated testing is good to markedly decrease time on testing by recycling tests and doing highly repetable tasks. Manual testing enables instant work on elements and a less costly implementation.
+
+> 3. Pipelines
+     + Common components of a pipeline are build automation, test automation, and deployment automation.
+     + Code can be integrated into a shared repository, to be verified by an automated build. The changes to code can checked to be releasable.
+
+> 4. Backup
+     + A backup strategy is important, with lots of different possible ones: automate the process if using pipelines; create a database dump when deploying to production; backup once every day.
+     
+> 5. Deployment
+     + If deploying via a pipeline instant feedback is available on the code's formatting and whether tests are passed.
+     + If a pipeline isn't used there's the possibility for a revert. 
+     
+>6. Test on a live server 
+     + Check the live server for bugs, once changes are applied. Do a roll-back if there's a critical bug. 
+     
+> A very useful addition for the code of part (d) would be to generate a 'for' loop to automate running it over many datasets. Facetting would be a sound alternate strategy, using 'facet_wrap()' instead of aggregating plots. The 'melt' function from the 'reshape2' package could be used to create such a dataframe. 
+
+
+### 2 Postcodes and Privacy
+
+> Going by the example given in America, where 5-digit Zip codes are rounded to 3-digits for health data anonymisation, the below code carries out this same function. It highlights the most problematic postcodes, those being not equal to 6 digits. It removes the last 3-digits of 6-digit UK postcodes.
+
+```{r}
+#Cutting columns in R not relevant to following task#
+Postcode_Table <- read.csv("Postcode_Table.csv", header = TRUE)
+
+UK_code_df <- subset(Postcode_Table, select = -c(Males:Occupied_Households))
+UK_code_df
+
+#Counting strings in the Postcode column#
+library(stringr)
+
+UK_code_df$Postcode <- gsub(" ","", UK_code_df$Postcode)
+
+UK_code_df$Postcode_length = str_count(UK_code_df$Postcode)
+UK_code_df
+```
+```{r}
+#Subset to have just the problematic postcodes without a length of 6#
+library(dplyr)
+
+UK_code_df$Postcode_length<-gsub("6","",as.character(UK_code_df$Postcode_length))
+UK_code_df
+
+UK_code_df1 <- UK_code_df %>% dplyr::na_if("")
+Problem_post_codes <- na.omit(UK_code_df1)
+Problem_post_codes
+```
+> The problematic postcodes have been sequestered into a dataset of their own. Those that are suitable, of a 6 character length are below.  
+
+```{r}
+#Cutting columns in R not relevant to following task#
+UK_code_df <- subset(Postcode_Table, select = -c(Males:Occupied_Households))
+UK_code_df
+
+#Counting strings in the Postcode column#
+library(stringr)
+
+UK_code_df$Postcode <- gsub(" ","", UK_code_df$Postcode)
+
+UK_code_df$Postcode_length = str_count(UK_code_df$Postcode)
+UK_code_df$Postcode_length<-gsub("5","",as.character(UK_code_df$Postcode_length))
+UK_code_df$Postcode_length<-gsub("7","",as.character(UK_code_df$Postcode_length))
+UK_code_df1 <- UK_code_df %>% dplyr::na_if("")
+Workable_post_codes <- na.omit(UK_code_df1)
+Workable_post_codes
+
+```
+
+> Further work would need to include the generation of a dataframe with postcode areas fewer than 20K residents, to be lumped under the new 000 code.This would aid in the 'data minimisation' principle.
+
+ There are several main principles to GDPR, applicable to this postcodes dataset. 
+ 
+> 1. Data minimisation 
+     + Organisations should not collect more personal information than is necessary. Hence, it is appropriate to remove the columns 'males', 'females', and 'occupied households' in the original postcodes dataframe.
+
+> 2. Security
+     + Pseudonymisation is encouraged to minimise damage from data breaches. Putting postcodes with smaller residents totals under code 000 helps, as well as encyrpting the postcodes.
+
+> 3. Accountability
+     + Documenting the handling of personal data, ensuring any alteration, loss, or destruction is reports to a country's data protection regulator. In this case, the above documentation of the alteration to the original dataset is important to have. 
+
+
+
+
